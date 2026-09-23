@@ -17,8 +17,8 @@ cursor = conexao.cursor() #abrindo o cursor
 #ranking de artistas com no mínimo 5 músicas por maiores médias de popularidade
 artistasmaispopulares = """ 
 SELECT CASE WHEN INSTR(tks.artists, ';') > 0 THEN LEFT(tks.artists, INSTR(tks.artists, ";") - 1)   -- selecionando apenas o artista principal da faixa
-			ELSE tks.artists
-END AS "artists",  AVG(tdt.popularity) AS "popularity"       -- selecionando a média de popularidade
+ELSE tks.artists
+END AS "artist",  AVG(tdt.popularity) AS "popularity"       -- selecionando a média de popularidade
 FROM tracks AS tks INNER JOIN tracksdetails AS tdt        -- juntando as informações das duas tabelas
 ON tks.track_id = tdt.track_id                     -- as colunas que se correspondem nas tabelas (primary key e foreign key)
 GROUP BY CASE 
@@ -30,13 +30,13 @@ HAVING COUNT(tks.track_name) >= 5 ORDER BY popularity DESC LIMIT 20;   -- limita
 
 #dados = cursor.fetchall() #armazenando os dados da consulta em uma variavel
 tabelaartistasmaispopulares = pd.read_sql_query(artistasmaispopulares, conexao) #criando uma tabela do pandas com os dados
-print(tabelaartistasmaispopulares)
+#print(tabelaartistasmaispopulares)
 
 
 
 #generos mais populares
 generosmaispopulares = """
-                SELECT tks.track_genre AS "genre", COUNT(*) AS "tracks_quantity", 
+SELECT tks.track_genre AS "genre", COUNT(*) AS "tracks_quantity", 
 CONCAT(ROUND((SUM(tdt.popularity >= 80) / COUNT(*) * 100), 2), "%") AS "popular_percent"  -- selecionando as colunas de genero e criando as colunas de percentual de musicas populares e quantidade de musicas 
 FROM tracks AS tks INNER JOIN tracksdetails AS tdt ON tks.track_id = tdt.track_id   -- juntando as duas tabelas
 GROUP BY genre ORDER BY popular_percent DESC LIMIT 20;  -- cada genero aparecendo uma única vez
@@ -44,13 +44,51 @@ GROUP BY genre ORDER BY popular_percent DESC LIMIT 20;  -- cada genero aparecend
 """
 
 tabelagenerosmaispopulares = pd.read_sql_query(generosmaispopulares, conexao)
-print(tabelagenerosmaispopulares)
+#print(tabelagenerosmaispopulares)
 
 
-#artistas mais populares com x musicas minimas  CHECKS
 
-#generos mais populares
 #artistas mais populares de cada genero
+artistasporgenero = """
+WITH top_genres AS (   -- criando a cte que armazena os generos mais populares (que aparecem na ultima consulta)
+    SELECT tks.track_genre AS "genre"
+    FROM tracks AS tks INNER JOIN tracksdetails AS tdt   
+    ON tks.track_id = tdt.track_id
+    GROUP BY genre
+    ORDER BY (SUM(tdt.popularity >= 80) / COUNT(*)) DESC LIMIT 20
+),
+
+artist_avg AS (
+    SELECT tks.track_genre AS genre, CASE WHEN INSTR(tks.artists, ';') > 0 THEN LEFT(tks.artists, INSTR(tks.artists, ";") - 1)   -- selecionando apenas o artista principal da faixa
+	ELSE tks.artists  -- selecionando o principal artista de cada track
+    END AS "artist", 
+    ROUND(AVG(tdt.popularity), 2) AS avg_popularity -- criando a média de popularidade
+    FROM tracks AS tks INNER JOIN tracksdetails AS tdt ON tks.track_id = tdt.track_id
+    INNER JOIN top_genres AS tg ON tks.track_genre = tg.genre  -- juntando as duas tabelas principais com a cte dos generos mais populares
+    GROUP BY genre, artist
+),
+
+ranked_artists AS (
+    SELECT artist, genre, avg_popularity, 
+    ROW_NUMBER() OVER -- window function para agrupar os generos e selecionar o artista mais popular de cada genero
+    (PARTITION BY genre ORDER BY avg_popularity DESC) AS ranking 
+    FROM artist_avg
+)
+
+SELECT
+    genre, CASE WHEN INSTR(ranked_artists.artist, ';') > 0 THEN LEFT(ranked_artists.artist, INSTR(ranked_artists.artist, ";") - 1)   -- selecionando apenas o artista principal da faixa
+		   ELSE ranked_artists.artist  -- selecionando apenas o artista principal da faixa
+		   END AS "artist",
+	avg_popularity
+    FROM ranked_artists
+    WHERE ranking = 1 -- selecionando o artista com maior popularidade em cada genêro
+	ORDER BY avg_popularity DESC;
+
+"""
+
+tabelaartistasporgenero = pd.read_sql_query(artistasporgenero, conexao)
+print(tabelaartistasporgenero)
+
 #artistas mais versateis 
 #identidade sonora de cada genero
 #caracteristas das musicas mais populares vs das musicas menos populares
