@@ -27,7 +27,6 @@ GROUP BY CASE
     END 
 HAVING COUNT(tks.track_name) >= 5 ORDER BY popularity DESC LIMIT 20;   -- limitando pra artistas com 5 musicas mínimas e ordenando por popularidade
 """
-
 #dados = cursor.fetchall() #armazenando os dados da consulta em uma variavel
 tabelaartistasmaispopulares = pd.read_sql_query(artistasmaispopulares, conexao) #criando uma tabela do pandas com os dados
 #print(tabelaartistasmaispopulares)
@@ -42,7 +41,6 @@ FROM tracks AS tks INNER JOIN tracksdetails AS tdt ON tks.track_id = tdt.track_i
 GROUP BY genre ORDER BY popular_percent DESC LIMIT 20;  -- cada genero aparecendo uma única vez
 
 """
-
 tabelagenerosmaispopulares = pd.read_sql_query(generosmaispopulares, conexao)
 #print(tabelagenerosmaispopulares)
 
@@ -85,14 +83,96 @@ SELECT
 	ORDER BY avg_popularity DESC;
 
 """
-
 tabelaartistasporgenero = pd.read_sql_query(artistasporgenero, conexao)
-print(tabelaartistasporgenero)
+#print(tabelaartistasporgenero)
 
-#artistas mais versateis 
-#identidade sonora de cada genero
+
+
 #caracteristas das musicas mais populares vs das musicas menos populares
-#caracteristicas das musicas mais DANÇANTES
+caracteristicasporpopularidade = """
+WITH toppopular AS ( SELECT *
+FROM tracksdetails              -- cte contendo as 20 musicas mais populares
+ORDER BY popularity DESC
+LIMIT 20
+),
+bottompopular AS (SELECT *
+FROM tracksdetails              -- cte contendo as 20 musicas menos populares
+ORDER BY popularity ASC
+LIMIT 20
+)
+
+-- selecionando as médias de cada caracteristica das musicas e separando pelas mais populares e menos populares
+SELECT "avg duration_ms" AS feature,
+ROUND((SELECT AVG(duration_ms) FROM toppopular), 2) AS most_popular, 
+ROUND((SELECT AVG(duration_ms) FROM bottompopular), 2) AS less_popular,
+CONCAT(
+    ROUND((((SELECT AVG(duration_ms) FROM toppopular) - (SELECT AVG(duration_ms) FROM bottompopular)) 
+		  / NULLIF((SELECT AVG(duration_ms) FROM bottompopular), 0)) * 100, 2 ),'%') AS "% difference" 
+UNION ALL  -- empilhando os selects de cada caracteristica em linhas
+
+SELECT "avg danceability",
+ROUND((SELECT AVG(danceability) FROM toppopular), 2), 
+ROUND((SELECT AVG(danceability) FROM bottompopular), 2),
+CONCAT(
+    ROUND((((SELECT AVG(danceability) FROM toppopular) - (SELECT AVG(danceability) FROM bottompopular)) 
+		  / NULLIF((SELECT AVG(danceability) FROM bottompopular), 0)) * 100, 2 ),'%') AS "% difference" 
+UNION ALL
+
+SELECT "avg energy",
+ROUND((SELECT AVG(energy) FROM toppopular), 2) AS most_popular, 
+ROUND((SELECT AVG(energy) FROM bottompopular), 2) AS less_popular,
+CONCAT(
+    ROUND((((SELECT AVG(energy) FROM toppopular) - (SELECT AVG(energy) FROM bottompopular)) 
+		  / NULLIF((SELECT AVG(energy) FROM bottompopular), 0)) * 100, 2 ),'%') AS "% difference" 
+UNION ALL
+
+SELECT "avg loudness",
+ROUND((SELECT AVG(loudness) FROM toppopular), 2) AS most_popular, 
+ROUND((SELECT AVG(loudness) FROM bottompopular), 2) AS less_popular,
+CONCAT(
+    ROUND((((SELECT AVG(loudness) FROM toppopular) - (SELECT AVG(loudness) FROM bottompopular)) 
+		  / NULLIF((SELECT AVG(loudness) FROM bottompopular), 0)) * 100, 2 ),'%') AS "% difference" 
+UNION ALL
+
+SELECT "avg speechiness",
+ROUND((SELECT AVG(speechiness) FROM toppopular), 2) AS most_popular, 
+ROUND((SELECT AVG(speechiness) FROM bottompopular), 2) AS less_popular,
+CONCAT(
+    ROUND((((SELECT AVG(speechiness) FROM toppopular) - (SELECT AVG(speechiness) FROM bottompopular)) 
+		  / NULLIF((SELECT AVG(speechiness) FROM bottompopular), 0)) * 100, 2 ),'%') AS "% difference" 
+UNION ALL
+
+SELECT "avg acousticness",
+ROUND((SELECT AVG(acousticness) FROM toppopular), 2) AS most_popular, 
+ROUND((SELECT AVG(acousticness) FROM bottompopular), 2) AS less_popular,
+CONCAT(
+    ROUND((((SELECT AVG(acousticness) FROM toppopular) - (SELECT AVG(acousticness) FROM bottompopular)) 
+		  / NULLIF((SELECT AVG(acousticness) FROM bottompopular), 0)) * 100, 2 ),'%') AS "% difference" 
+UNION ALL
+
+SELECT "avg valence",
+ROUND((SELECT AVG(valence) FROM toppopular), 2) AS most_popular, 
+ROUND((SELECT AVG(valence) FROM bottompopular), 2) AS less_popular,
+CONCAT(
+    ROUND((((SELECT AVG(valence) FROM toppopular) - (SELECT AVG(valence) FROM bottompopular)) 
+		  / NULLIF((SELECT AVG(valence) FROM bottompopular), 0)) * 100, 2 ),'%') AS "% difference" 
+UNION ALL
+
+SELECT "avg tempo",
+ROUND((SELECT AVG(tempo) FROM toppopular), 2), 
+ROUND((SELECT AVG(tempo) FROM bottompopular), 2),
+CONCAT(
+    ROUND((((SELECT AVG(tempo) FROM toppopular) - (SELECT AVG(tempo) FROM bottompopular)) 
+		  / NULLIF((SELECT AVG(tempo) FROM bottompopular), 0)) * 100, 2 ),'%') AS "% difference" 
+
+"""
+tabelamusicaspopulares = pd.read_sql_query(caracteristicasporpopularidade, conexao)
+print(tabelamusicaspopulares)
+
+#artistas mais versateis talvez n fzr tb
+#caracteristicas das musicas mais DANÇANTES talvz nao fazer
+
+#identidade sonora de cada genero
 #musicas mais populares de cada genero
 
 cursor.close() #fechando o cursor
