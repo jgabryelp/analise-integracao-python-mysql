@@ -24,3 +24,4 @@ for coluna in tracksdetails.select_dtypes(include="str").columns:
 
 tracks.to_csv("tracks.csv", sep=',', encoding='utf-8', index=False) #exportando as tabelas em csv pra abrir no mysql
 tracksdetails.to_csv("tracksdetails.csv", sep=',', encoding='utf-8', index=False)
+
