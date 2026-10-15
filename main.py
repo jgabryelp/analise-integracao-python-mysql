@@ -25,7 +25,7 @@ conexao = create_engine(
         database='defaultdb'
     ),
     connect_args={
-        'ssl': {'ca': str(Path('ca.pem').resolve())}}
+        'ssl': {'ca': str(Path('config/ca.pem').resolve())}}
 )
 
 
@@ -370,7 +370,7 @@ tabelatotalgeneros = pd.read_sql_query(totalgeneros, conexao)
 col3.metric('🎧 Total de gêneros ', f'{tabelatotalgeneros["count"][0]}')
 
 
-tracks = pd.read_csv('tracks.csv', sep=',')  #contando cada artista de forma única (algumas tracks tem mais de um artista)
+tracks = pd.read_csv('data/tracks.csv', sep=',')  #contando cada artista de forma única (algumas tracks tem mais de um artista)
 qtdartistas = (tracks['artists'].dropna().str.split(';').explode().str.strip().str.replace(r'\s+', ' ', regex=True).replace('', pd.NA).dropna().nunique())
 
 col4.metric('🎤 Total de artistas ', f'{qtdartistas:,}'.replace(',', '.'))
