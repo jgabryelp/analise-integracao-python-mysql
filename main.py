@@ -1,20 +1,31 @@
 #importação das bibliotecas
-import pyodbc
+from sqlalchemy import URL, create_engine
 import pandas as pd 
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv() 
 
-#conectando ao banco de dados MySQL
-conexao = pyodbc.connect(       
-    'DRIVER={MySQL ODBC 26.7 Unicode Driver};'  
-    'SERVER=localhost;'
-    'DATABASE=spotifydatabase;'
-    'UID=root;'
-   f'PWD={os.getenv("MYSQL_PASSWORD")};'
+#configurando a conexão
+try:
+    senha = st.secrets['MYSQL_PASSWORD']
+except:
+    senha = os.getenv('MYSQL_PASSWORD')
+
+conexao = create_engine(
+    URL.create(
+        drivername='mysql+pymysql',
+        username='avnadmin',
+        password=senha,
+        host='mysql-82f184a-joaogabryelcaldeirap-a5a5.j.aivencloud.com',
+        port=11978,
+        database='defaultdb'
+    ),
+    connect_args={
+        'ssl': {'ca': str(Path('ca.pem').resolve())}}
 )
 
 
@@ -32,18 +43,18 @@ GROUP BY CASE
 HAVING COUNT(tks.track_name) >= 5 ORDER BY avg_popularity DESC LIMIT 12;   -- filtrando artistas com pelo menos 5 músicas e ordenando pela média de popularidade
 """
 tabelaartistasmaispopulares = pd.read_sql_query(artistasmaispopulares, conexao) #criando uma tabela do Pandas com os dados
-print(tabelaartistasmaispopulares)
+print(tabelaartistasmaispopulares, '\n')
 
 
 #gêneros mais populares
 generosmaispopulares = """
 SELECT tks.track_genre AS "genre", COUNT(*) AS "tracks_quantity", 
-CONCAT(ROUND((SUM(tdt.popularity >= 80) / COUNT(*) * 100), 2), '%') AS "popular_percent"  -- selecionando o gênero e calculando a quantidade e o percentual de músicas populares
+CONCAT(ROUND((SUM(tdt.popularity >= 80) / COUNT(*) * 100), 2), '%%') AS "popular_percent"  -- selecionando o gênero e calculando a quantidade e o percentual de músicas populares
 FROM tracks AS tks INNER JOIN tracksdetails AS tdt ON tks.track_id = tdt.track_id   -- relacionando as duas tabelas
 GROUP BY genre ORDER BY popular_percent DESC LIMIT 14;  -- agrupando para que cada gênero apareça uma única vez
 """
 tabelagenerosmaispopulares = pd.read_sql_query(generosmaispopulares, conexao)
-print(tabelagenerosmaispopulares)
+print(tabelagenerosmaispopulares, '\n')
 
 
 #artistas mais populares de cada gênero
@@ -83,7 +94,7 @@ SELECT
     ORDER BY avg_popularity DESC;
 """
 tabelaartistasporgenero = pd.read_sql_query(artistasporgenero, conexao)
-print(tabelaartistasporgenero)
+print(tabelaartistasporgenero, '\n')
 
 
 #características das músicas mais populares vs menos populares
@@ -100,71 +111,71 @@ LIMIT 20
 )
 
 -- calculando a média de cada característica para os grupos de músicas mais e menos populares
-SELECT "avg_duration_ms" AS feature,
+SELECT 'avg_duration_ms' AS feature,
 ROUND((SELECT AVG(duration_ms) FROM toppopular), 2) AS most_popular, 
 ROUND((SELECT AVG(duration_ms) FROM bottompopular), 2) AS less_popular,
 CONCAT(
     ROUND((((SELECT AVG(duration_ms) FROM toppopular) - (SELECT AVG(duration_ms) FROM bottompopular)) 
-          / NULLIF((SELECT AVG(duration_ms) FROM bottompopular), 0)) * 100, 2 ),'%') AS "percent_difference" 
+          / NULLIF((SELECT AVG(duration_ms) FROM bottompopular), 0)) * 100, 2 ),'%%') AS "percent_difference" 
 UNION ALL  -- unindo os resultados das diferentes características em linhas
 
-SELECT "avg_danceability",
+SELECT 'avg_danceability',
 ROUND((SELECT AVG(danceability) FROM toppopular), 2), 
 ROUND((SELECT AVG(danceability) FROM bottompopular), 2),
 CONCAT(
     ROUND((((SELECT AVG(danceability) FROM toppopular) - (SELECT AVG(danceability) FROM bottompopular)) 
-          / NULLIF((SELECT AVG(danceability) FROM bottompopular), 0)) * 100, 2 ),'%') AS "percent_difference" 
+          / NULLIF((SELECT AVG(danceability) FROM bottompopular), 0)) * 100, 2 ),'%%') AS "percent_difference" 
 UNION ALL
 
-SELECT "avg_energy",
+SELECT 'avg_energy',
 ROUND((SELECT AVG(energy) FROM toppopular), 2) AS most_popular, 
 ROUND((SELECT AVG(energy) FROM bottompopular), 2) AS less_popular,
 CONCAT(
     ROUND((((SELECT AVG(energy) FROM toppopular) - (SELECT AVG(energy) FROM bottompopular)) 
-          / NULLIF((SELECT AVG(energy) FROM bottompopular), 0)) * 100, 2 ),'%') AS "percent_difference" 
+          / NULLIF((SELECT AVG(energy) FROM bottompopular), 0)) * 100, 2 ),'%%') AS "percent_difference" 
 UNION ALL
 
-SELECT "avg_loudness",
+SELECT 'avg_loudness',
 ROUND((SELECT AVG(loudness) FROM toppopular), 2) AS most_popular, 
 ROUND((SELECT AVG(loudness) FROM bottompopular), 2) AS less_popular,
 CONCAT(
     ROUND((((SELECT AVG(loudness) FROM toppopular) - (SELECT AVG(loudness) FROM bottompopular)) 
-          / NULLIF((SELECT AVG(loudness) FROM bottompopular), 0)) * 100, 2 ),'%') AS "percent_difference" 
+          / NULLIF((SELECT AVG(loudness) FROM bottompopular), 0)) * 100, 2 ),'%%') AS "percent_difference" 
 UNION ALL
 
-SELECT "avg_speechiness",
+SELECT 'avg_speechiness',
 ROUND((SELECT AVG(speechiness) FROM toppopular), 2) AS most_popular, 
 ROUND((SELECT AVG(speechiness) FROM bottompopular), 2) AS less_popular,
 CONCAT(
     ROUND((((SELECT AVG(speechiness) FROM toppopular) - (SELECT AVG(speechiness) FROM bottompopular)) 
-          / NULLIF((SELECT AVG(speechiness) FROM bottompopular), 0)) * 100, 2 ),'%') AS "percent_difference" 
+          / NULLIF((SELECT AVG(speechiness) FROM bottompopular), 0)) * 100, 2 ),'%%') AS "percent_difference" 
 UNION ALL
 
-SELECT "avg_acousticness",
+SELECT 'avg_acousticness',
 ROUND((SELECT AVG(acousticness) FROM toppopular), 2) AS most_popular, 
 ROUND((SELECT AVG(acousticness) FROM bottompopular), 2) AS less_popular,
 CONCAT(
     ROUND((((SELECT AVG(acousticness) FROM toppopular) - (SELECT AVG(acousticness) FROM bottompopular)) 
-          / NULLIF((SELECT AVG(acousticness) FROM bottompopular), 0)) * 100, 2 ),'%') AS "percent_difference" 
+          / NULLIF((SELECT AVG(acousticness) FROM bottompopular), 0)) * 100, 2 ),'%%') AS "percent_difference" 
 UNION ALL
 
-SELECT "avg_valence",
+SELECT 'avg_valence',
 ROUND((SELECT AVG(valence) FROM toppopular), 2) AS most_popular, 
 ROUND((SELECT AVG(valence) FROM bottompopular), 2) AS less_popular,
 CONCAT(
     ROUND((((SELECT AVG(valence) FROM toppopular) - (SELECT AVG(valence) FROM bottompopular)) 
-          / NULLIF((SELECT AVG(valence) FROM bottompopular), 0)) * 100, 2 ),'%') AS "percent_difference" 
+          / NULLIF((SELECT AVG(valence) FROM bottompopular), 0)) * 100, 2 ),'%%') AS "percent_difference" 
 UNION ALL
 
-SELECT "avg_tempo",
+SELECT 'avg_tempo',
 ROUND((SELECT AVG(tempo) FROM toppopular), 2), 
 ROUND((SELECT AVG(tempo) FROM bottompopular), 2),
 CONCAT(
     ROUND((((SELECT AVG(tempo) FROM toppopular) - (SELECT AVG(tempo) FROM bottompopular)) 
-          / NULLIF((SELECT AVG(tempo) FROM bottompopular), 0)) * 100, 2 ),'%') AS "percent_difference" 
+          / NULLIF((SELECT AVG(tempo) FROM bottompopular), 0)) * 100, 2 ),'%%') AS "percent_difference" 
 """
 tabelafeaturesmusicas = pd.read_sql_query(caracteristicasporpopularidade, conexao)
-print(tabelafeaturesmusicas)
+print(tabelafeaturesmusicas, '\n')
 
 
 #identidade sonora de cada gênero
@@ -177,7 +188,7 @@ FROM tracks AS tks INNER JOIN tracksdetails AS tdt ON tks.track_id = tdt.track_i
 GROUP BY genre ORDER BY (SUM(tdt.popularity >= 80) / COUNT(*)) DESC LIMIT 20;  -- selecionando os 20 gêneros com maior percentual de músicas populares
 """
 tabeladnadosgeneros = pd.read_sql_query(dnadosgeneros, conexao)
-print(tabeladnadosgeneros)
+print(tabeladnadosgeneros, '\n')
 
 
 #visualizando as consultas
@@ -328,7 +339,6 @@ fig4.update_layout(  #personalizando as configurações visuais do gráfico
 )   
 
 
-
 #exibindo os gráficos no streamlit
 st.set_page_config(
     page_title='Spotify: além da música',   #configurando as informações da página
@@ -430,4 +440,4 @@ with graf3:
     st.write("""Os 14 gêneros mais populares e seus artistas com as maiores médias de popularidade.""")
     st.plotly_chart(fig3, width='stretch')
 
-conexao.close() #fechando a conexão
+conexao.dispose() #fechando a conexão

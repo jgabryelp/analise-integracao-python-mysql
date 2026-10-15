@@ -1,3 +1,6 @@
 .vscode/
 spotify-tracks-dataset-detailed.csv
 .env
+.streamlit/secrets.toml
+__pycache__/
+*.pyc
